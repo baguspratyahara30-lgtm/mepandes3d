@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -16,8 +16,8 @@ import { Input } from "@/components/ui/input";
 
 const EVENT_DATE = new Date("2026-05-16T08:00:00+08:00");
 const MAP_URL = "https://maps.app.goo.gl/AzgMmtC7bBV3vUAa8";
-const PAGE_SCROLL_THRESHOLD = 90;
-const PAGE_LOCK_DURATION_MS = 820;
+const PAGE_SCROLL_THRESHOLD = 140;
+const PAGE_LOCK_DURATION_MS = 850;
 
 type Attendance = "hadir" | "tidakHadir";
 
@@ -93,10 +93,6 @@ function getCountdown(): CountdownState {
   };
 }
 
-function clampPage(page: number) {
-  return Math.max(0, Math.min(4, page));
-}
-
 function PagePanel({
   active,
   children,
@@ -108,13 +104,13 @@ function PagePanel({
     <section
       aria-hidden={!active}
       className={[
-        "metatah-fade-panel absolute inset-0 px-4 py-6 sm:px-6 sm:py-8",
+        "absolute inset-0 px-4 py-5 transition-all duration-700 ease-out",
         active
           ? "pointer-events-auto opacity-100 blur-0"
-          : "pointer-events-none opacity-0 blur-[10px]",
+          : "pointer-events-none opacity-0 blur-[10px] translate-y-4",
       ].join(" ")}
     >
-      <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-center">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100svh-2.5rem)] w-full max-w-6xl items-center justify-center">
         {children}
       </div>
     </section>
@@ -130,7 +126,7 @@ function CountCard({
 }) {
   return (
     <div className="metatah-card rounded-[2rem] px-4 py-5 text-center shadow-[0_24px_45px_rgba(82,49,25,0.12)]">
-      <div className="metatah-accent text-3xl font-semibold tracking-[0.08em] text-[#6c4629] sm:text-4xl">
+      <div className="metatah-accent text-3xl font-semibold tracking-[0.08em] text-[#6c4629]">
         {value}
       </div>
       <div className="mt-2 text-xs uppercase tracking-[0.28em] text-[#8d6748]">
@@ -142,8 +138,6 @@ function CountCard({
 
 export function MetatahInvitation() {
   const [currentPage, setCurrentPage] = useState(0);
-  const [isOpening, setIsOpening] = useState(false);
-  const [hasOpened, setHasOpened] = useState(false);
   const [countdown, setCountdown] = useState<CountdownState>(getCountdown);
   const [summary, setSummary] = useState<RsvpSummary>({
     hadir: 0,
@@ -158,11 +152,13 @@ export function MetatahInvitation() {
     attendance: "hadir",
     message: "",
   });
-  const openTimerRef = useRef<number | null>(null);
   const navigationLockRef = useRef(false);
   const navigationTimerRef = useRef<number | null>(null);
   const wheelDeltaRef = useRef(0);
   const touchStartYRef = useRef<number | null>(null);
+  const touchStartTargetRef = useRef<EventTarget | null>(null);
+  const totalPages = 5;
+  const rsvpPage = 3;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -208,134 +204,123 @@ export function MetatahInvitation() {
   }, []);
 
   useEffect(() => {
+    setCurrentPage(0);
+  }, []);
+
+  useEffect(() => {
     return () => {
-      if (openTimerRef.current) {
-        window.clearTimeout(openTimerRef.current);
-      }
       if (navigationTimerRef.current) {
         window.clearTimeout(navigationTimerRef.current);
       }
     };
   }, []);
 
-  const goToPage = (page: number) => {
-    startTransition(() => {
-      setCurrentPage(clampPage(page));
-    });
+  const goToPage = (nextPage: number) => {
+    const clamped = Math.max(0, Math.min(totalPages - 1, nextPage));
+    setCurrentPage(clamped);
   };
 
   const lockNavigation = () => {
     navigationLockRef.current = true;
-
     if (navigationTimerRef.current) {
       window.clearTimeout(navigationTimerRef.current);
     }
-
     navigationTimerRef.current = window.setTimeout(() => {
       navigationLockRef.current = false;
       wheelDeltaRef.current = 0;
     }, PAGE_LOCK_DURATION_MS);
   };
 
-  const movePageBy = useEffectEvent((direction: 1 | -1) => {
+  const movePageBy = (direction: 1 | -1) => {
     if (navigationLockRef.current) {
       return;
     }
-
-    const nextPage = clampPage(currentPage + direction);
-    if (nextPage === currentPage) {
+    const next = Math.max(0, Math.min(totalPages - 1, currentPage + direction));
+    if (next === currentPage) {
       return;
     }
-
     lockNavigation();
-    goToPage(nextPage);
-  });
+    goToPage(next);
+  };
 
-  const openInvitation = () => {
-    if (isOpening) {
-      return;
+  const getScrollableAncestor = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return null;
     }
 
-    setIsOpening(true);
+    return target.closest(
+      "[data-allow-native-scroll='true']",
+    ) as HTMLElement | null;
+  };
 
-    openTimerRef.current = window.setTimeout(() => {
-      setHasOpened(true);
-      setIsOpening(false);
-      goToPage(1);
-    }, 1150);
+  const canScrollInside = (
+    target: EventTarget | null,
+    direction: 1 | -1,
+  ): boolean => {
+    const scrollable = getScrollableAncestor(target);
+    if (!scrollable) {
+      return false;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollable;
+    const maxScrollTop = scrollHeight - clientHeight;
+    if (maxScrollTop <= 1) {
+      return false;
+    }
+
+    if (direction === 1) {
+      return scrollTop < maxScrollTop - 1;
+    }
+
+    return scrollTop > 1;
   };
 
   useEffect(() => {
-    if (!hasOpened) {
-      return;
-    }
-
-    const isInteractiveTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-
-      return Boolean(
-        target.closest(
-          "input, textarea, select, button, a, [contenteditable='true'], [data-allow-native-scroll='true']",
-        ),
-      );
-    };
-
     const handleWheel = (event: WheelEvent) => {
-      if (isInteractiveTarget(event.target)) {
+      if (Math.abs(event.deltaY) < 6) {
         return;
       }
+      const direction = event.deltaY > 0 ? 1 : -1;
 
-      if (Math.abs(event.deltaY) < 6) {
+      if (canScrollInside(event.target, direction)) {
+        wheelDeltaRef.current = 0;
         return;
       }
 
       event.preventDefault();
-
-      if (navigationLockRef.current) {
-        return;
-      }
-
       wheelDeltaRef.current += event.deltaY;
-
       if (Math.abs(wheelDeltaRef.current) < PAGE_SCROLL_THRESHOLD) {
         return;
       }
-
       movePageBy(wheelDeltaRef.current > 0 ? 1 : -1);
       wheelDeltaRef.current = 0;
     };
 
     const handleTouchStart = (event: TouchEvent) => {
-      if (isInteractiveTarget(event.target)) {
-        touchStartYRef.current = null;
-        return;
-      }
-
       touchStartYRef.current = event.touches[0]?.clientY ?? null;
+      touchStartTargetRef.current = event.target;
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
       if (touchStartYRef.current === null || navigationLockRef.current) {
         touchStartYRef.current = null;
+        touchStartTargetRef.current = null;
         return;
       }
-
       const touchEndY = event.changedTouches[0]?.clientY ?? touchStartYRef.current;
       const deltaY = touchStartYRef.current - touchEndY;
-
       touchStartYRef.current = null;
-
-      if (Math.abs(deltaY) < 60) {
+      if (Math.abs(deltaY) < 55) {
+        touchStartTargetRef.current = null;
         return;
       }
-
-      if (isInteractiveTarget(event.target)) {
+      const direction = deltaY > 0 ? 1 : -1;
+      if (canScrollInside(touchStartTargetRef.current, direction)) {
+        touchStartTargetRef.current = null;
         return;
       }
-
-      movePageBy(deltaY > 0 ? 1 : -1);
+      movePageBy(direction);
+      touchStartTargetRef.current = null;
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
@@ -347,7 +332,7 @@ export function MetatahInvitation() {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [hasOpened]);
+  }, [currentPage]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -397,49 +382,40 @@ export function MetatahInvitation() {
   };
 
   return (
-    <main className="relative h-[100svh] overflow-hidden bg-[#e8d2bb] text-[#4e301d]">
+    <main className="relative h-[100svh] overflow-hidden bg-[#e8d2bb] text-[#4e301d] [overscroll-behavior-x:none] [touch-action:pan-y]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#fff7ea_0%,#edd9c0_43%,#d7b596_100%)]" />
         <div className="absolute inset-x-0 top-[-8%] h-[58%] bg-[url('/metatah/blob.png')] bg-contain bg-top bg-no-repeat opacity-55" />
         <div className="absolute inset-0 bg-[url('/metatah/paper-texture.jpg')] bg-cover bg-center opacity-16 mix-blend-multiply" />
-        <div className="absolute left-[-8%] top-[16%] h-64 w-64 rounded-full bg-[#f7eddc]/60 blur-3xl sm:h-80 sm:w-80" />
-        <div className="absolute bottom-[8%] right-[-6%] h-72 w-72 rounded-full bg-[#c59a71]/30 blur-3xl sm:h-96 sm:w-96" />
+        <div className="absolute left-[-8%] top-[16%] h-60 w-60 rounded-full bg-[#f7eddc]/60 blur-3xl" />
+        <div className="absolute bottom-[8%] right-[-6%] h-64 w-64 rounded-full bg-[#c59a71]/30 blur-3xl" />
       </div>
 
       <PagePanel active={currentPage === 0}>
         <div className="w-full max-w-4xl text-center">
-          <div className="metatah-script text-[2rem] text-[#7f5130] sm:text-[2.6rem]">
+          <div className="metatah-script text-[1.85rem] text-[#7f5130]">
             Om Swastyastu
           </div>
-          <h1 className="metatah-display mt-3 text-4xl leading-[0.95] text-[#5f3820] sm:text-6xl">
+          <h1 className="metatah-display mt-3 text-[2.6rem] leading-[0.95] text-[#5f3820]">
             Mepandes
           </h1>
-          <p className="metatah-accent mt-3 text-lg tracking-[0.24em] text-[#8b684c] uppercase sm:text-xl">
+          <p className="metatah-accent mt-3 text-base tracking-[0.2em] text-[#8b684c] uppercase">
             {PEOPLE.map((person) => person.fullName).join(" . ")}
           </p>
-          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#6a4a33] sm:text-base">
+          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#6a4a33]">
             Atas asung kerta wara nugraha Ida Sang Hyang Widhi Wasa, kami
             mengundang Bapak/Ibu/Saudara/i untuk hadir dalam rangkaian upacara
             mepandes yang kami selenggarakan penuh sukacita.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-4">
-            <Button
-              type="button"
-              onClick={openInvitation}
-              className="h-12 rounded-full border border-[#8f6544]/20 bg-[#74482b] px-7 text-sm uppercase tracking-[0.22em] text-[#fff7f0] shadow-[0_18px_40px_rgba(97,57,29,0.25)] transition hover:bg-[#5f3820]"
-            >
-              Buka Undangan
-            </Button>
-            <p className="text-xs uppercase tracking-[0.28em] text-[#9f7757]">
-              Surat akan terbuka menuju halaman berikutnya
-            </p>
-          </div>
         </div>
       </PagePanel>
 
       <PagePanel active={currentPage === 1}>
-        <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="metatah-card rounded-[2.6rem] p-6 shadow-[0_32px_55px_rgba(86,53,26,0.13)] sm:p-8">
+        <div
+          data-allow-native-scroll="true"
+          className="grid w-full max-h-[calc(100svh-3.5rem)] gap-4 overflow-y-auto pr-1"
+        >
+          <div className="metatah-card rounded-[2.4rem] p-5 shadow-[0_32px_55px_rgba(86,53,26,0.13)]">
             <div className="flex items-center gap-3 text-[#7f5635]">
               <CalendarDays className="size-5" />
               <span className="text-xs uppercase tracking-[0.3em]">
@@ -450,11 +426,11 @@ export function MetatahInvitation() {
               <p className="metatah-script text-[2rem] text-[#8d6442]">
                 Save the Date
               </p>
-              <h2 className="metatah-display mt-2 text-4xl text-[#5d3921] sm:text-5xl">
+              <h2 className="metatah-display mt-2 text-[2.1rem] text-[#5d3921]">
                 16 Mei 2026
               </h2>
             </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="mt-6 grid gap-3 grid-cols-1">
               <div className="rounded-[1.8rem] bg-[#fff7ef]/75 p-4">
                 <p className="metatah-accent text-xs uppercase tracking-[0.24em] text-[#9a7354]">
                   Hari
@@ -505,22 +481,22 @@ export function MetatahInvitation() {
             </div>
           </div>
 
-          <div className="metatah-card rounded-[2.6rem] p-6 shadow-[0_32px_55px_rgba(86,53,26,0.13)] sm:p-8">
+          <div className="metatah-card rounded-[2.4rem] p-5 shadow-[0_32px_55px_rgba(86,53,26,0.13)]">
             <div className="flex items-center gap-3 text-[#7f5635]">
               <Clock3 className="size-5" />
               <span className="text-xs uppercase tracking-[0.3em]">
                 Countdown Realtime
               </span>
             </div>
-            <h3 className="metatah-display mt-5 text-3xl text-[#5d3921] sm:text-4xl">
+            <h3 className="metatah-display mt-5 text-[1.9rem] text-[#5d3921]">
               Menuju Hari Mepandes
             </h3>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-[#6d4e37] sm:text-base">
+            <p className="mt-3 max-w-xl text-sm leading-7 text-[#6d4e37]">
               Hitung mundur akan terus berjalan secara realtime hingga
               rangkaian acara dimulai pada Sabtu, 16 Mei 2026 pukul 08.00 WITA.
             </p>
 
-            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="mt-8 grid grid-cols-2 gap-3">
               <CountCard value={countdown.days} label="Hari" />
               <CountCard value={countdown.hours} label="Jam" />
               <CountCard value={countdown.minutes} label="Menit" />
@@ -531,20 +507,20 @@ export function MetatahInvitation() {
       </PagePanel>
 
       <PagePanel active={currentPage === 2}>
-        <div className="w-full">
+        <div
+          data-allow-native-scroll="true"
+          className="w-full max-h-[calc(100svh-3.5rem)] overflow-y-auto pr-1"
+        >
           <div className="mx-auto max-w-3xl text-center">
             <div className="inline-flex items-center gap-3 text-[#7f5635]">
               <Users className="size-5" />
               <span className="text-xs uppercase tracking-[0.3em]">
-                Yang Melaksanakan Mepandes
+                  Mepandes
               </span>
             </div>
-            <h2 className="metatah-script mt-5 text-[2.4rem] text-[#7f5130] sm:text-[3.2rem]">
-              Mepandes
-            </h2>
           </div>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
+          <div className="mt-6 grid gap-4 grid-cols-1">
             {PEOPLE.map((person) => (
               <article
                 key={person.fullName}
@@ -565,14 +541,14 @@ export function MetatahInvitation() {
                     alt={person.fullName}
                     width={740}
                     height={820}
-                    className="h-[320px] w-full object-cover object-center sm:h-[360px]"
+                    className="h-[300px] w-full object-cover object-center"
                   />
                 </div>
                 <div className="px-4 pb-4 pt-5 text-center">
                   <p className="metatah-script text-[1.75rem] text-[#8b6441]">
                     Mepandes
                   </p>
-                  <h3 className="metatah-display mt-2 text-2xl leading-tight text-[#5b3720] sm:text-3xl">
+                  <h3 className="metatah-display mt-2 text-[1.7rem] leading-tight text-[#5b3720]">
                     {person.fullNameDisplay}
                   </h3>
                   <p className="mt-3 text-sm leading-7 text-[#7f5a3d]">
@@ -585,9 +561,12 @@ export function MetatahInvitation() {
         </div>
       </PagePanel>
 
-      <PagePanel active={currentPage === 3}>
-        <div className="grid w-full gap-6 lg:grid-cols-[0.86fr_1.14fr]">
-          <div className="metatah-card relative overflow-hidden rounded-[2.6rem] p-6 shadow-[0_32px_55px_rgba(86,53,26,0.13)] sm:p-8">
+      <PagePanel active={currentPage === rsvpPage}>
+        <div
+          data-allow-native-scroll="true"
+          className="grid w-full max-h-[calc(100svh-3.5rem)] gap-4 overflow-y-auto pr-1"
+        >
+          <div className="metatah-card relative overflow-hidden rounded-[2.4rem] p-5 shadow-[0_32px_55px_rgba(86,53,26,0.13)]">
             <div className="absolute inset-0 bg-[url('/metatah/rsvp-card.png')] bg-cover bg-center opacity-[0.14]" />
             <div className="relative">
               <div className="flex items-center gap-3 text-[#7f5635]">
@@ -596,10 +575,10 @@ export function MetatahInvitation() {
                   Buku Tamu
                 </span>
               </div>
-              <h2 className="metatah-display mt-5 text-4xl text-[#5d3921] sm:text-5xl">
+              <h2 className="metatah-display mt-5 text-[2.1rem] text-[#5d3921]">
                 RSVP
               </h2>
-              <p className="mt-4 text-sm leading-7 text-[#6a4b36] sm:text-base">
+              <p className="mt-4 text-sm leading-7 text-[#6a4b36]">
                 Silakan isi kehadiran dan ucapan singkat Anda. Data RSVP ini
                 akan tersimpan di website agar jumlah kehadiran dapat terlihat
                 saat halaman dibuka secara online.
@@ -639,9 +618,9 @@ export function MetatahInvitation() {
 
           <form
             onSubmit={handleSubmit}
-            className="metatah-card rounded-[2.6rem] p-6 shadow-[0_32px_55px_rgba(86,53,26,0.13)] sm:p-8"
+            className="metatah-card rounded-[2.4rem] p-5 shadow-[0_32px_55px_rgba(86,53,26,0.13)]"
           >
-            <h3 className="metatah-display text-3xl text-[#5d3921] sm:text-4xl">
+            <h3 className="metatah-display text-[1.9rem] text-[#5d3921]">
               Isi Data Anda
             </h3>
             <p className="mt-3 text-sm leading-7 text-[#6a4b36]">
@@ -671,7 +650,7 @@ export function MetatahInvitation() {
                 <label className="text-xs uppercase tracking-[0.24em] text-[#91694a]">
                   Kehadiran
                 </label>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 grid-cols-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -739,7 +718,7 @@ export function MetatahInvitation() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-6 flex flex-col gap-4">
               <Button
                 type="submit"
                 disabled={isSubmitting}
@@ -758,8 +737,8 @@ export function MetatahInvitation() {
         </div>
       </PagePanel>
 
-      <PagePanel active={currentPage === 4}>
-        <div className="metatah-card relative w-full max-w-4xl overflow-hidden rounded-[3rem] px-6 py-12 text-center shadow-[0_36px_70px_rgba(86,53,26,0.14)] sm:px-10 sm:py-16">
+      <PagePanel active={currentPage === totalPages - 1}>
+        <div className="metatah-card relative w-full max-w-4xl overflow-hidden rounded-[2.6rem] px-5 py-10 text-center shadow-[0_36px_70px_rgba(86,53,26,0.14)]">
           <div className="absolute inset-x-0 top-0">
             <Image
               src="/metatah/ornament-top.png"
@@ -780,13 +759,13 @@ export function MetatahInvitation() {
           </div>
 
           <div className="relative mx-auto max-w-2xl">
-            <p className="metatah-script text-[2rem] text-[#8d6442] sm:text-[2.5rem]">
+            <p className="metatah-script text-[1.8rem] text-[#8d6442]">
               Suksma
             </p>
-            <h2 className="metatah-display mt-3 text-4xl leading-tight text-[#5d3921] sm:text-6xl">
+            <h2 className="metatah-display mt-3 text-[2.5rem] leading-tight text-[#5d3921]">
               Terima Kasih
             </h2>
-            <p className="mt-6 text-sm leading-8 text-[#6a4b36] sm:text-base">
+            <p className="mt-6 text-sm leading-8 text-[#6a4b36]">
               Merupakan kebanggaan dan kebahagiaan bagi kami sekeluarga apabila
               Bapak/Ibu/Saudara/i berkenan hadir. Atas kehadiran serta doa
               restunya, kami mengucapkan terima kasih.
@@ -801,7 +780,7 @@ export function MetatahInvitation() {
               </p>
             </div>
 
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3">
               <Button
                 type="button"
                 onClick={() => goToPage(0)}
@@ -812,7 +791,7 @@ export function MetatahInvitation() {
               </Button>
               <Button
                 type="button"
-                onClick={() => goToPage(3)}
+                onClick={() => goToPage(rsvpPage)}
                 className="h-12 rounded-full border border-[#8f6544]/20 bg-[#74482b] px-6 text-xs uppercase tracking-[0.24em] text-[#fff8f2] transition hover:bg-[#5f3820]"
               >
                 Kembali ke RSVP
