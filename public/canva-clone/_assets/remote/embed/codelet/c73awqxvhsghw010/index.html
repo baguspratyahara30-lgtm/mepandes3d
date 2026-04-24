@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSVP Guest Book</title>
+  <script src="https://canva-hosted-embed.com/codelet/eyJhbGciOiJIUzI1NiJ9.eyJjIjoiYzczYXdxeHZoc2dodzAxMCIsImV4cCI6MTc3NzA3MzYxNCwiZCI6IkRBSEhxNHdDbmRRIiwiZGVwIjoiREFISHE0d0NuZFEifQ.DowTFYNR3mtZNpysowE7KNUmci2PZNi9zbjjPv-p0J8/element_sdk.js?pin_id=eb23d8d974cec0821dc0c01bf011715d"></script>
+  <script src="https://canva-hosted-embed.com/codelet/eyJhbGciOiJIUzI1NiJ9.eyJjIjoiYzczYXdxeHZoc2dodzAxMCIsImV4cCI6MTc3NzA3MzYxNCwiZCI6IkRBSEhxNHdDbmRRIiwiZGVwIjoiREFISHE0d0NuZFEifQ.DowTFYNR3mtZNpysowE7KNUmci2PZNi9zbjjPv-p0J8/data_sdk.js?pin_id=eb23d8d974cec0821dc0c01bf011715d"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Lora:wght@400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      background: linear-gradient(135deg, #8B7355 0%, #A0826D 50%, #7A6B5D 100%);
+      font-family: 'Lora', serif;
+      overflow-x: hidden;
+    }
+
+    .app-wrapper {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: 
+        radial-gradient(ellipse at 20% 80%, rgba(255, 248, 240, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(101, 84, 63, 0.1) 0%, transparent 50%),
+        linear-gradient(135deg, #8B7355 0%, #A0826D 50%, #7A6B5D 100%);
+    }
+
+    .header-section {
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    .page-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      color: #F5E6D3;
+      font-weight: 700;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      margin-bottom: 0.5rem;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1rem, 5vw, 1.5rem);
+      color: #D4AF9E;
+      font-weight: 400;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+      margin-bottom: 2rem;
+      letter-spacing: 1px;
+    }
+
+    .decorative-line {
+      width: clamp(60px, 15vw, 100px);
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #D4AF9E, transparent);
+      margin: 1rem auto 1.5rem;
+    }
+
+    .stats-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 0 auto 2rem;
+      max-width: 500px;
+      padding: 0 1rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 248, 240, 0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(212, 175, 158, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      background: rgba(255, 248, 240, 0.25);
+      border-color: rgba(212, 175, 158, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .stat-number {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.5rem, 6vw, 2.5rem);
+      color: #D4AF9E;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: clamp(0.75rem, 3vw, 0.95rem);
+      color: #E8D5C4;
+      letter-spacing: 0.5px;
+    }
+
+    .form-section {
+      background: rgba(255, 248, 240, 0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(212, 175, 158, 0.25);
+      border-radius: 16px;
+      padding: clamp(1.5rem, 5vw, 2.5rem);
+      margin: 0 auto 2rem;
+      max-width: 550px;
+      width: calc(100% - 2rem);
+    }
+
+    .form-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.5rem, 5vw, 2rem);
+      color: #F5E6D3;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      letter-spacing: 1px;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-size: clamp(0.85rem, 3vw, 1rem);
+      color: #E8D5C4;
+      margin-bottom: 0.6rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: clamp(0.75rem, 3vw, 1rem);
+      background: rgba(255, 248, 240, 0.08);
+      border: 1.5px solid rgba(212, 175, 158, 0.3);
+      border-radius: 8px;
+      font-family: 'Lora', serif;
+      font-size: clamp(0.9rem, 3vw, 1rem);
+      color: #F5E6D3;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    input[type="text"]::placeholder,
+    textarea::placeholder {
+      color: rgba(212, 175, 158, 0.5);
+    }
+
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      background: rgba(255, 248, 240, 0.15);
+      border-color: rgba(212, 175, 158, 0.6);
+      box-shadow: 0 0 12px rgba(212, 175, 158, 0.2);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-size: clamp(0.9rem, 3vw, 1rem);
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      cursor: pointer;
+    }
+
+    .radio-option input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #D4AF9E;
+    }
+
+    .radio-option label {
+      margin: 0;
+      cursor: pointer;
+      font-size: clamp(0.9rem, 3vw, 1rem);
+    }
+
+    .submit-button {
+      width: 100%;
+      padding: clamp(0.9rem, 3vw, 1.2rem);
+      background: linear-gradient(135deg, #D4AF9E 0%, #C4956C 100%);
+      color: #2C2416;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(0.95rem, 3vw, 1.1rem);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 12px rgba(212, 175, 158, 0.3);
+    }
+
+    .submit-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(212, 175, 158, 0.4);
+      background: linear-gradient(135deg, #E8D5C4 0%, #D4AF9E 100%);
+    }
+
+    .submit-button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .submit-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .messages-section {
+      margin: 0 auto 2rem;
+      max-width: 550px;
+      width: calc(100% - 2rem);
+    }
+
+    .messages-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.3rem, 5vw, 1.8rem);
+      color: #F5E6D3;
+      margin-bottom: 1.5rem;
+      letter-spacing: 1px;
+    }
+
+    .message-card {
+      background: rgba(255, 248, 240, 0.12);
+      backdrop-filter: blur(12px);
+      border-left: 4px solid #D4AF9E;
+      border-radius: 8px;
+      padding: clamp(1rem, 3vw, 1.5rem);
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+      animation: slideIn 0.4s ease forwards;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message-card:hover {
+      background: rgba(255, 248, 240, 0.18);
+      transform: translateX(4px);
+    }
+
+    .message-name {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1rem, 3vw, 1.2rem);
+      color: #D4AF9E;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    .message-attendance {
+      display: inline-block;
+      font-size: clamp(0.75rem, 2vw, 0.85rem);
+      padding: 0.4rem 0.8rem;
+      background: rgba(212, 175, 158, 0.2);
+      border-radius: 4px;
+      color: #E8D5C4;
+      margin-bottom: 0.8rem;
+      border: 1px solid rgba(212, 175, 158, 0.3);
+    }
+
+    .message-attendance.hadir {
+      background: rgba(139, 195, 74, 0.2);
+      color: #C8E6C9;
+      border-color: rgba(139, 195, 74, 0.4);
+    }
+
+    .message-text {
+      font-size: clamp(0.9rem, 3vw, 1rem);
+      color: #E8D5C4;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: rgba(212, 175, 158, 0.7);
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(212, 175, 158, 0.3);
+      border-top-color: #D4AF9E;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      background: rgba(139, 195, 74, 0.2);
+      border: 1px solid rgba(139, 195, 74, 0.4);
+      color: #C8E6C9;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-size: clamp(0.85rem, 3vw, 0.95rem);
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .error-message {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.4);
+      color: #EF9A9A;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-size: clamp(0.85rem, 3vw, 0.95rem);
+    }
+
+    @media (max-width: 768px) {
+      .app-wrapper {
+        padding-bottom: 1rem;
+      }
+
+      .header-section {
+        padding: 1.5rem 0.75rem;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+
+      .subtitle {
+        font-size: 0.95rem;
+      }
+
+      .decorative-line {
+        margin: 0.75rem auto 1rem;
+      }
+
+      .stats-section {
+        gap: 0.5rem;
+        margin: 0 auto 1.5rem;
+        padding: 0 0.75rem;
+      }
+
+      .stat-card {
+        padding: 1rem;
+      }
+
+      .stat-number {
+        font-size: 2rem;
+        margin-bottom: 0.3rem;
+      }
+
+      .stat-label {
+        font-size: 0.75rem;
+      }
+
+      .form-section {
+        padding: 1.25rem;
+        margin: 0 auto 1.5rem;
+        width: calc(100% - 1.5rem);
+        border-radius: 12px;
+      }
+
+      .form-title {
+        font-size: 1.3rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+
+      label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+
+      input[type="text"],
+      textarea {
+        padding: 0.85rem;
+        font-size: 1rem;
+      }
+
+      textarea {
+        min-height: 90px;
+      }
+
+      .radio-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+
+      .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.75rem;
+        background: rgba(255, 248, 240, 0.08);
+        border: 1px solid rgba(212, 175, 158, 0.2);
+        border-radius: 6px;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+
+      .radio-option:active {
+        background: rgba(255, 248, 240, 0.15);
+        border-color: rgba(212, 175, 158, 0.4);
+      }
+
+      .radio-option input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        flex-shrink: 0;
+      }
+
+      .radio-option label {
+        margin: 0;
+        font-size: 0.85rem;
+        flex: 1;
+      }
+
+      .submit-button {
+        padding: 1rem;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+      }
+
+      .messages-section {
+        margin: 0 auto 1.5rem;
+        max-width: none;
+        width: calc(100% - 1.5rem);
+        padding: 0 0.75rem;
+      }
+
+      .messages-title {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+      }
+
+      .message-card {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 8px;
+      }
+
+      .message-name {
+        font-size: 1rem;
+        margin-bottom: 0.4rem;
+      }
+
+      .message-attendance {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+        margin-bottom: 0.6rem;
+      }
+
+      .message-text {
+        font-size: 0.9rem;
+      }
+
+      .empty-state {
+        padding: 1.5rem;
+        font-size: 0.95rem;
+      }
+
+      .success-message,
+      .error-message {
+        padding: 0.85rem;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-wrapper {
+        padding-bottom: 0.5rem;
+      }
+
+      .header-section {
+        padding: 1.25rem 0.5rem;
+      }
+
+      .page-title {
+        font-size: 1.75rem;
+        letter-spacing: 1px;
+      }
+
+      .subtitle {
+        font-size: 0.85rem;
+      }
+
+      .stats-section {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+        padding: 0 0.5rem;
+      }
+
+      .stat-card {
+        padding: 0.85rem;
+        border-radius: 10px;
+      }
+
+      .stat-number {
+        font-size: 1.75rem;
+      }
+
+      .stat-label {
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
+      }
+
+      .form-section {
+        padding: 1rem;
+        margin: 0 auto 1.25rem;
+        width: calc(100% - 1rem);
+      }
+
+      .form-title {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+
+      .form-group {
+        margin-bottom: 1rem;
+      }
+
+      label {
+        font-size: 0.85rem;
+      }
+
+      input[type="text"],
+      textarea {
+        padding: 0.75rem;
+        font-size: 16px;
+      }
+
+      textarea {
+        min-height: 80px;
+      }
+
+      .radio-group {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+      }
+
+      .radio-option {
+        padding: 0.65rem;
+        gap: 0.5rem;
+      }
+
+      .radio-option input[type="radio"] {
+        width: 16px;
+        height: 16px;
+      }
+
+      .radio-option label {
+        font-size: 0.8rem;
+      }
+
+      .submit-button {
+        padding: 0.9rem;
+        font-size: 0.95rem;
+      }
+
+      .messages-section {
+        width: calc(100% - 1rem);
+        padding: 0 0.5rem;
+      }
+
+      .messages-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.85rem;
+      }
+
+      .message-card {
+        padding: 0.85rem;
+        margin-bottom: 0.6rem;
+        border-radius: 6px;
+      }
+
+      .message-name {
+        font-size: 0.95rem;
+      }
+
+      .message-attendance {
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+      }
+
+      .message-text {
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .decorative-line {
+        width: 50px;
+      }
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body>
+  <div class="app-wrapper"><!-- Header Section -->
+   <div class="header-section">
+    <h1 class="page-title" id="pageTitle">RSVP</h1>
+    <p class="subtitle" id="subtitleText">Buku Tamu &amp; Ucapan</p>
+    <div class="decorative-line"></div>
+   </div><!-- Statistics Section -->
+   <div class="stats-section">
+    <div class="stat-card">
+     <div class="stat-number" id="statHadir">
+      0
+     </div>
+     <div class="stat-label">
+      HADIR
+     </div>
+    </div>
+    <div class="stat-card">
+     <div class="stat-number" id="statTidakHadir">
+      0
+     </div>
+     <div class="stat-label">
+      TIDAK HADIR
+     </div>
+    </div>
+   </div><!-- Form Section -->
+   <div class="form-section">
+    <h2 class="form-title" id="formTitle">Isi Data Anda</h2>
+    <div id="successMessage" class="success-message" style="display: none;">
+     Terima kasih! Ucapan Anda telah tersimpan.
+    </div>
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    <form id="guestForm">
+     <div class="form-group"><label for="name" id="nameLabel">Nama</label> <input type="text" id="name" placeholder="Masukkan nama Anda" required>
+     </div>
+     <div class="form-group"><label for="message" id="messageLabel">Ucapan</label> <textarea id="message" placeholder="Tulis ucapan Anda..." required></textarea>
+     </div>
+     <div class="form-group"><label id="attendanceLabel">Kehadiran</label>
+      <div class="radio-group">
+       <div class="radio-option"><input type="radio" id="hadir" name="attendance" value="Hadir" required> <label for="hadir">Hadir</label>
+       </div>
+       <div class="radio-option"><input type="radio" id="tidakHadir" name="attendance" value="Tidak Hadir" required> <label for="tidakHadir">Tidak Hadir</label>
+       </div>
+      </div>
+     </div><button type="submit" class="submit-button" id="submitBtn"> <span id="submitText">Kirim</span> <span id="submitLoader" class="loading-spinner" style="display: none;"></span> </button>
+    </form>
+   </div>
+   <div style="height: 2rem;"></div>
+  </div>
+  <script>
+    let allMessages = [];
+    let currentConfig = {};
+    const defaultConfig = {
+      page_title: "RSVP",
+      subtitle_text: "Buku Tamu & Ucapan",
+      form_title: "Isi Data Anda",
+      name_label: "Nama",
+      message_label: "Ucapan",
+      attendance_label: "Kehadiran",
+      submit_button: "Kirim"
+    };
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allMessages = data;
+        updateStatistics();
+        renderMessages();
+      }
+    };
+
+    async function initializeApp() {
+      // Initialize Data SDK
+      const dataResult = await window.dataSdk.init(dataHandler);
+      if (!dataResult.isOk) {
+        console.error("Failed to initialize Data SDK");
+      }
+
+      // Initialize Element SDK
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (config) => {
+          currentConfig = config;
+          updateUI();
+        },
+        mapToCapabilities: (config) => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ["page_title", config.page_title || defaultConfig.page_title],
+          ["subtitle_text", config.subtitle_text || defaultConfig.subtitle_text],
+          ["form_title", config.form_title || defaultConfig.form_title],
+          ["name_label", config.name_label || defaultConfig.name_label],
+          ["message_label", config.message_label || defaultConfig.message_label],
+          ["attendance_label", config.attendance_label || defaultConfig.attendance_label],
+          ["submit_button", config.submit_button || defaultConfig.submit_button]
+        ])
+      });
+
+      setupFormHandler();
+    }
+
+    function updateUI() {
+      const config = window.elementSdk?.config || currentConfig;
+      document.getElementById("pageTitle").textContent = config.page_title || defaultConfig.page_title;
+      document.getElementById("subtitleText").textContent = config.subtitle_text || defaultConfig.subtitle_text;
+      document.getElementById("formTitle").textContent = config.form_title || defaultConfig.form_title;
+      document.getElementById("nameLabel").textContent = config.name_label || defaultConfig.name_label;
+      document.getElementById("messageLabel").textContent = config.message_label || defaultConfig.message_label;
+      document.getElementById("attendanceLabel").textContent = config.attendance_label || defaultConfig.attendance_label;
+      document.getElementById("submitText").textContent = config.submit_button || defaultConfig.submit_button;
+    }
+
+    function setupFormHandler() {
+      document.getElementById("guestForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value.trim();
+        const message = document.getElementById("message").value.trim();
+        const attendance = document.querySelector('input[name="attendance"]:checked').value;
+
+        if (!name || !message || !attendance) {
+          showError("Semua field harus diisi!");
+          return;
+        }
+
+        if (allMessages.length >= 999) {
+          showError("Buku tamu sudah penuh. Terima kasih atas partisipasi Anda!");
+          return;
+        }
+
+        setSubmitLoading(true);
+
+        const newEntry = {
+          name,
+          message,
+          attendance,
+          timestamp: new Date().toISOString()
+        };
+
+        const result = await window.dataSdk.create(newEntry);
+
+        if (result.isOk) {
+          document.getElementById("guestForm").reset();
+          showSuccess();
+          setTimeout(hideSuccessMessage, 3000);
+        } else {
+          showError("Gagal menyimpan ucapan. Coba lagi!");
+        }
+
+        setSubmitLoading(false);
+      });
+    }
+
+    function updateStatistics() {
+      const hadir = allMessages.filter(m => m.attendance === "Hadir").length;
+      const tidakHadir = allMessages.filter(m => m.attendance === "Tidak Hadir").length;
+      
+      document.getElementById("statHadir").textContent = hadir;
+      document.getElementById("statTidakHadir").textContent = tidakHadir;
+    }
+
+    function renderMessages() {
+      const container = document.getElementById("messagesList");
+
+      if (allMessages.length === 0) {
+        container.innerHTML = '<div class="empty-state">Belum ada ucapan. Jadilah yang pertama!</div>';
+        return;
+      }
+
+      const existingMap = new Map(
+        [...container.children].map(el => [el.dataset.messageId, el])
+      );
+
+      allMessages.forEach((msg, index) => {
+        const msgId = msg.__backendId || index;
+        const msgElement = document.createElement("div");
+        msgElement.className = "message-card";
+        msgElement.dataset.messageId = msgId;
+
+        const attendanceClass = msg.attendance === "Hadir" ? "hadir" : "";
+        msgElement.innerHTML = `
+          <div class="message-name">${escapeHtml(msg.name)}</div>
+          <div class="message-attendance ${attendanceClass}">${msg.attendance}</div>
+          <div class="message-text">"${escapeHtml(msg.message)}"</div>
+        `;
+
+        if (existingMap.has(msgId)) {
+          existingMap.get(msgId).replaceWith(msgElement);
+          existingMap.delete(msgId);
+        } else {
+          container.appendChild(msgElement);
+        }
+      });
+
+      existingMap.forEach(el => el.remove());
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showSuccess() {
+      const msg = document.getElementById("successMessage");
+      msg.style.display = "block";
+    }
+
+    function hideSuccessMessage() {
+      document.getElementById("successMessage").style.display = "none";
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById("errorMessage");
+      errorDiv.textContent = message;
+      errorDiv.style.display = "block";
+      setTimeout(() => {
+        errorDiv.style.display = "none";
+      }, 4000);
+    }
+
+    function setSubmitLoading(isLoading) {
+      const btn = document.getElementById("submitBtn");
+      const text = document.getElementById("submitText");
+      const loader = document.getElementById("submitLoader");
+
+      btn.disabled = isLoading;
+      text.style.display = isLoading ? "none" : "inline";
+      loader.style.display = isLoading ? "inline-block" : "none";
+    }
+
+    initializeApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f14cbc0a2c42dee',t:'MTc3NzAzMDQzNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

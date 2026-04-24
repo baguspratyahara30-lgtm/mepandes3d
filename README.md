@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mepandes Invitation
 
-## Getting Started
+Website undangan mepandes interaktif berbasis Next.js dengan:
 
-First, run the development server:
+- halaman pembuka surat
+- countdown realtime acara
+- galeri nama dan foto yang mepandes
+- RSVP online
+- halaman ucapan terima kasih
+
+## Jalankan Lokal
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Website akan terbuka di `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## RSVP Storage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Proyek ini memakai 2 mode penyimpanan RSVP:
 
-## Learn More
+- lokal: otomatis memakai file `.data/metatah-rsvp.json` saat dijalankan di komputer sendiri tanpa env Redis
+- production: otomatis memakai Upstash Redis bila `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` tersedia
 
-To learn more about Next.js, take a look at the following resources:
+Mode ini dibuat supaya development tetap mudah, tapi deploy online tetap aman dan persisten.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy Yang Direkomendasikan
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Rekomendasi utama untuk proyek ini adalah:
 
-## Deploy on Vercel
+1. push project ke GitHub
+2. import repo ke Vercel
+3. pasang integrasi Upstash Redis dari Vercel Marketplace
+4. pastikan env `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` masuk ke project
+5. lakukan deploy production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Setelah itu RSVP akan tersimpan online dan jumlah `hadir` atau `tidak hadir` akan terlihat untuk semua pengunjung.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Checklist Deploy Vercel
+
+1. Buka Vercel dan pilih `Add New Project`
+2. Import repository GitHub untuk folder `my-app`
+3. Di project Vercel, buka `Storage`
+4. Tambahkan `Upstash Redis`
+5. Konfirmasi bahwa env berikut tersedia:
+
+```bash
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+6. Deploy ulang bila env baru saja ditambahkan
+
+## Build Check
+
+```bash
+npm run lint
+npm run build
+```
