@@ -6,6 +6,8 @@ import {
   CalendarDays,
   Clock3,
   MapPin,
+  Volume2,
+  VolumeX,
   ScrollText,
   Send,
   Users,
@@ -16,6 +18,7 @@ import { Input } from "@/components/ui/input";
 
 const EVENT_DATE = new Date("2026-05-16T08:00:00+08:00");
 const MAP_URL = "https://maps.app.goo.gl/AzgMmtC7bBV3vUAa8";
+const BGM_TRACK = "/audio/Bali World Music, Gus Teja, Morning Happiness.mp3";
 const PAGE_SCROLL_THRESHOLD = 140;
 const PAGE_LOCK_DURATION_MS = 850;
 
@@ -138,6 +141,8 @@ function CountCard({
 
 export function MetatahInvitation() {
   const [currentPage, setCurrentPage] = useState(0);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [countdown, setCountdown] = useState<CountdownState>(getCountdown);
   const [summary, setSummary] = useState<RsvpSummary>({
     hadir: 0,
@@ -157,6 +162,7 @@ export function MetatahInvitation() {
   const wheelDeltaRef = useRef(0);
   const touchStartYRef = useRef<number | null>(null);
   const touchStartTargetRef = useRef<EventTarget | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const totalPages = 5;
   const rsvpPage = 3;
 
@@ -242,6 +248,62 @@ export function MetatahInvitation() {
     lockNavigation();
     goToPage(next);
   };
+
+  const playBackgroundMusic = async () => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    try {
+      await audioRef.current.play();
+      setIsMusicPlaying(true);
+    } catch {
+      setIsMusicPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    const nextMuted = !audioRef.current.muted;
+    audioRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    audioRef.current.volume = 0.5;
+    void playBackgroundMusic();
+  }, []);
+
+  useEffect(() => {
+    const ensurePlayingAfterInteraction = () => {
+      if (audioRef.current?.paused) {
+        void playBackgroundMusic();
+      }
+    };
+
+    window.addEventListener("pointerdown", ensurePlayingAfterInteraction, {
+      once: true,
+    });
+    window.addEventListener("touchstart", ensurePlayingAfterInteraction, {
+      once: true,
+    });
+    window.addEventListener("keydown", ensurePlayingAfterInteraction, {
+      once: true,
+    });
+
+    return () => {
+      window.removeEventListener("pointerdown", ensurePlayingAfterInteraction);
+      window.removeEventListener("touchstart", ensurePlayingAfterInteraction);
+      window.removeEventListener("keydown", ensurePlayingAfterInteraction);
+    };
+  }, []);
 
   const getScrollableAncestor = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) {
@@ -383,6 +445,22 @@ export function MetatahInvitation() {
 
   return (
     <main className="relative h-[100svh] overflow-hidden bg-[#e8d2bb] text-[#4e301d] [overscroll-behavior-x:none] [touch-action:pan-y]">
+      <audio
+        ref={audioRef}
+        src={BGM_TRACK}
+        loop
+        preload="auto"
+        onPlay={() => setIsMusicPlaying(true)}
+        onPause={() => setIsMusicPlaying(false)}
+      />
+      <button
+        type="button"
+        onClick={toggleMute}
+        className="absolute right-4 top-4 z-30 inline-flex h-11 items-center gap-2 rounded-full border border-[#8f6544]/25 bg-[#fff8f1]/85 px-4 text-xs uppercase tracking-[0.18em] text-[#6d472b] shadow-[0_10px_24px_rgba(86,53,26,0.2)] backdrop-blur"
+      >
+        {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+        {isMuted ? "Unmute" : "Mute"}
+      </button>
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#fff7ea_0%,#edd9c0_43%,#d7b596_100%)]" />
         <div className="absolute inset-x-0 top-[-8%] h-[58%] bg-[url('/metatah/blob.png')] bg-contain bg-top bg-no-repeat opacity-55" />
