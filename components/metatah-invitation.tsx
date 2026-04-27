@@ -305,11 +305,14 @@ export function MetatahInvitation() {
           cache: "no-store",
         });
 
+        const responsePayload = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error("Gagal memuat data RSVP.");
+          throw new Error(
+            getResponseText(responsePayload, "message") ||
+              "Gagal memuat data RSVP.",
+          );
         }
 
-        const responsePayload = await response.json();
         const payload = normalizeRsvpResponse(responsePayload);
         if (cancelled) {
           return;

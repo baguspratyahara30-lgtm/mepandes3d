@@ -20,6 +20,10 @@ type SupabaseRsvpRow = {
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
+function isProduction() {
+  return process.env.NODE_ENV === "production";
+}
+
 function isSupabaseConfigured() {
   return Boolean(
     process.env.SUPABASE_URL &&
@@ -147,27 +151,31 @@ async function getLocalResponse() {
 
 async function getCurrentResponse() {
   if (!isSupabaseConfigured()) {
+    if (isProduction()) {
+      throw new Error(
+        "Supabase belum dikonfigurasi. Isi env SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY agar RSVP online bisa dipakai.",
+      );
+    }
+
     return getLocalResponse();
   }
 
-  try {
-    const supabaseSnapshot = await getSupabaseSnapshot();
-    if (supabaseSnapshot) {
-      return {
-        ...supabaseSnapshot,
-        hasSubmitted: false,
-      };
-    }
-  } catch {
-    return getLocalResponse();
+  const supabaseSnapshot = await getSupabaseSnapshot();
+  if (supabaseSnapshot) {
+    return {
+      ...supabaseSnapshot,
+      hasSubmitted: false,
+    };
+  }
+
+  if (isProduction()) {
+    throw new Error("Data RSVP dari Supabase belum tersedia.");
   }
 
   return getLocalResponse();
 }
 
 export async function GET() {
-  const localResponse = await getLocalResponse();
-
   try {
     const response = await getCurrentResponse();
     return NextResponse.json(response, {
@@ -175,6 +183,22 @@ export async function GET() {
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {
+    if (isProduction()) {
+      return NextResponse.json(
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Sinkron Supabase sedang bermasalah.",
+        },
+        {
+          status: 503,
+          headers: NO_STORE_HEADERS,
+        },
+      );
+    }
+
+    const localResponse = await getLocalResponse();
     return NextResponse.json(
       {
         ...localResponse,
