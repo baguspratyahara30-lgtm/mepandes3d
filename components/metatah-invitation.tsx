@@ -39,7 +39,11 @@ type RsvpResponse = {
     message: string;
     createdAt: string;
   }>;
-  hasSubmitted: boolean;
+  hasSubmitted?: boolean;
+};
+
+type MetatahInvitationProps = {
+  initialRsvp?: RsvpResponse | null;
 };
 
 const EMPTY_RSVP: RsvpResponse = {
@@ -223,23 +227,34 @@ function getResponseText(payload: unknown, field: "message" | "warning") {
   return typeof value === "string" ? value : "";
 }
 
-export function MetatahInvitation() {
+export function MetatahInvitation({
+  initialRsvp,
+}: MetatahInvitationProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [countdown, setCountdown] = useState<CountdownState>(getCountdown);
-  const [summary, setSummary] = useState<RsvpSummary>({
-    hadir: 0,
-    tidakHadir: 0,
-  });
-  const [lastGuest, setLastGuest] = useState("");
-  const [lastMessage, setLastMessage] = useState("");
-  const [messages, setMessages] = useState<RsvpResponse["messages"]>([]);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState("");
+  const [summary, setSummary] = useState<RsvpSummary | null>(
+    initialRsvp?.summary ?? null,
+  );
+  const [lastGuest, setLastGuest] = useState(initialRsvp?.lastGuest ?? "");
+  const [lastMessage, setLastMessage] = useState(initialRsvp?.lastMessage ?? "");
+  const [messages, setMessages] = useState<RsvpResponse["messages"]>(
+    initialRsvp?.messages ?? [],
+  );
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(
+    initialRsvp
+      ? new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      : "",
+  );
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(initialRsvp?.hasSubmitted ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rsvpError, setRsvpError] = useState("");
   const [form, setForm] = useState<GuestForm>({
@@ -265,7 +280,7 @@ export function MetatahInvitation() {
     setLastMessage(payload.lastMessage);
     setMessages(payload.messages ?? []);
     if (options?.updateSubmitted) {
-      setIsSubmitted(payload.hasSubmitted);
+      setIsSubmitted(payload.hasSubmitted ?? false);
     }
     setLastUpdatedAt(new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -774,7 +789,7 @@ export function MetatahInvitation() {
               <div className="mt-8 grid grid-cols-2 gap-4">
                 <div className="rounded-[2rem] border border-[#9a724f]/15 bg-[#fff8f1]/72 p-5 text-center">
                   <div className="metatah-accent text-4xl font-semibold text-[#7d5636]">
-                    {summary.hadir}
+                    {summary?.hadir ?? "—"}
                   </div>
                   <div className="mt-2 text-xs uppercase tracking-[0.28em] text-[#9d7657]">
                     Hadir
@@ -782,7 +797,7 @@ export function MetatahInvitation() {
                 </div>
                 <div className="rounded-[2rem] border border-[#9a724f]/15 bg-[#fff8f1]/72 p-5 text-center">
                   <div className="metatah-accent text-4xl font-semibold text-[#7d5636]">
-                    {summary.tidakHadir}
+                    {summary?.tidakHadir ?? "—"}
                   </div>
                   <div className="mt-2 text-xs uppercase tracking-[0.28em] text-[#9d7657]">
                     Tidak Hadir
