@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -32,7 +32,53 @@ type RsvpSummary = {
 type RsvpResponse = {
   summary: RsvpSummary;
   lastGuest: string;
+  lastMessage: string;
+  messages: Array<{
+    attendance: Attendance;
+    name: string;
+    message: string;
+    createdAt: string;
+  }>;
+  hasSubmitted: boolean;
 };
+
+const EMPTY_RSVP: RsvpResponse = {
+  summary: { hadir: 0, tidakHadir: 0 },
+  lastGuest: "",
+  lastMessage: "",
+  messages: [],
+  hasSubmitted: false,
+};
+
+function normalizeRsvpResponse(payload: unknown): RsvpResponse {
+  if (!payload || typeof payload !== "object") {
+    return EMPTY_RSVP;
+  }
+
+  const data = payload as Partial<RsvpResponse>;
+  return {
+    summary: {
+      hadir:
+        typeof data.summary?.hadir === "number" ? data.summary.hadir : 0,
+      tidakHadir:
+        typeof data.summary?.tidakHadir === "number" ? data.summary.tidakHadir : 0,
+    },
+    lastGuest: typeof data.lastGuest === "string" ? data.lastGuest : "",
+    lastMessage: typeof data.lastMessage === "string" ? data.lastMessage : "",
+    messages: Array.isArray(data.messages)
+      ? data.messages.filter(
+          (item): item is RsvpResponse["messages"][number] =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            (item.attendance === "hadir" || item.attendance === "tidakHadir") &&
+            typeof item.name === "string" &&
+            typeof item.message === "string" &&
+            typeof item.createdAt === "string",
+        )
+      : [],
+    hasSubmitted: data.hasSubmitted === true,
+  };
+}
 
 type CountdownState = {
   days: string;
@@ -139,6 +185,44 @@ function CountCard({
   );
 }
 
+function getScrollableAncestor(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest(
+    "[data-allow-native-scroll='true']",
+  ) as HTMLElement | null;
+}
+
+function canScrollInside(target: EventTarget | null, direction: 1 | -1): boolean {
+  const scrollable = getScrollableAncestor(target);
+  if (!scrollable) {
+    return false;
+  }
+
+  const { scrollTop, scrollHeight, clientHeight } = scrollable;
+  const maxScrollTop = scrollHeight - clientHeight;
+  if (maxScrollTop <= 1) {
+    return false;
+  }
+
+  if (direction === 1) {
+    return scrollTop < maxScrollTop - 1;
+  }
+
+  return scrollTop > 1;
+}
+
+function getResponseText(payload: unknown, field: "message" | "warning") {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const value = (payload as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : "";
+}
+
 export function MetatahInvitation() {
   const [currentPage, setCurrentPage] = useState(0);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -149,6 +233,12 @@ export function MetatahInvitation() {
     tidakHadir: 0,
   });
   const [lastGuest, setLastGuest] = useState("");
+  const [lastMessage, setLastMessage] = useState("");
+  const [messages, setMessages] = useState<RsvpResponse["messages"]>([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState("");
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rsvpError, setRsvpError] = useState("");
@@ -166,6 +256,24 @@ export function MetatahInvitation() {
   const totalPages = 5;
   const rsvpPage = 3;
 
+  const applyRsvpPayload = (
+    payload: RsvpResponse,
+    options?: { updateSubmitted?: boolean },
+  ) => {
+    setSummary(payload.summary);
+    setLastGuest(payload.lastGuest);
+    setLastMessage(payload.lastMessage);
+    setMessages(payload.messages ?? []);
+    if (options?.updateSubmitted) {
+      setIsSubmitted(payload.hasSubmitted);
+    }
+    setLastUpdatedAt(new Date().toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }));
+  };
+
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setCountdown(getCountdown());
@@ -175,26 +283,41 @@ export function MetatahInvitation() {
   }, []);
 
   useEffect(() => {
-    const abortController = new AbortController();
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
 
     const loadRsvp = async () => {
       try {
         const response = await fetch("/api/rsvp", {
           method: "GET",
           cache: "no-store",
-          signal: abortController.signal,
         });
 
         if (!response.ok) {
           throw new Error("Gagal memuat data RSVP.");
         }
 
-        const payload = (await response.json()) as RsvpResponse;
-        setSummary(payload.summary);
-        setLastGuest(payload.lastGuest);
-        setRsvpError("");
+        const responsePayload = await response.json();
+        const payload = normalizeRsvpResponse(responsePayload);
+        if (cancelled) {
+          return;
+        }
+        applyRsvpPayload(payload);
+        setRsvpError(getResponseText(responsePayload, "warning"));
       } catch (error) {
-        if (abortController.signal.aborted) {
+        if (cancelled) {
           return;
         }
 
@@ -205,12 +328,14 @@ export function MetatahInvitation() {
     };
 
     void loadRsvp();
+    const pollId = window.setInterval(() => {
+      void loadRsvp();
+    }, 3000);
 
-    return () => abortController.abort();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(0);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+    };
   }, []);
 
   useEffect(() => {
@@ -237,7 +362,7 @@ export function MetatahInvitation() {
     }, PAGE_LOCK_DURATION_MS);
   };
 
-  const movePageBy = (direction: 1 | -1) => {
+  const movePageBy = useEffectEvent((direction: 1 | -1) => {
     if (navigationLockRef.current) {
       return;
     }
@@ -247,9 +372,9 @@ export function MetatahInvitation() {
     }
     lockNavigation();
     goToPage(next);
-  };
+  });
 
-  const playBackgroundMusic = async () => {
+  const playBackgroundMusic = useEffectEvent(async () => {
     if (!audioRef.current) {
       return;
     }
@@ -260,7 +385,7 @@ export function MetatahInvitation() {
     } catch {
       setIsMusicPlaying(false);
     }
-  };
+  });
 
   const toggleMute = () => {
     if (!audioRef.current) {
@@ -304,38 +429,6 @@ export function MetatahInvitation() {
       window.removeEventListener("keydown", ensurePlayingAfterInteraction);
     };
   }, []);
-
-  const getScrollableAncestor = (target: EventTarget | null) => {
-    if (!(target instanceof HTMLElement)) {
-      return null;
-    }
-
-    return target.closest(
-      "[data-allow-native-scroll='true']",
-    ) as HTMLElement | null;
-  };
-
-  const canScrollInside = (
-    target: EventTarget | null,
-    direction: 1 | -1,
-  ): boolean => {
-    const scrollable = getScrollableAncestor(target);
-    if (!scrollable) {
-      return false;
-    }
-
-    const { scrollTop, scrollHeight, clientHeight } = scrollable;
-    const maxScrollTop = scrollHeight - clientHeight;
-    if (maxScrollTop <= 1) {
-      return false;
-    }
-
-    if (direction === 1) {
-      return scrollTop < maxScrollTop - 1;
-    }
-
-    return scrollTop > 1;
-  };
 
   useEffect(() => {
     const handleWheel = (event: WheelEvent) => {
@@ -394,10 +487,19 @@ export function MetatahInvitation() {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [currentPage]);
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitted) {
+      setRsvpError("RSVP sudah terkirim. Refresh halaman jika ingin mengisi lagi.");
+      return;
+    }
+
+    if (!isOnline) {
+      setRsvpError("Anda offline. Silakan sambungkan internet lalu refresh halaman untuk mengirim RSVP.");
+      return;
+    }
 
     const trimmedName = form.name.trim();
     if (!trimmedName) {
@@ -410,6 +512,7 @@ export function MetatahInvitation() {
 
       const response = await fetch("/api/rsvp", {
         method: "POST",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
         },
@@ -420,21 +523,23 @@ export function MetatahInvitation() {
         }),
       });
 
+      const responsePayload = await response.json().catch(() => null);
+      const payload = normalizeRsvpResponse(responsePayload);
+      applyRsvpPayload(payload, { updateSubmitted: true });
+
       if (!response.ok) {
-        throw new Error("Gagal mengirim RSVP.");
+        throw new Error(
+          getResponseText(responsePayload, "message") || "Gagal mengirim RSVP.",
+        );
       }
 
-      const payload = (await response.json()) as RsvpResponse;
-      setSummary(payload.summary);
-      setLastGuest(payload.lastGuest);
-      setIsSubmitted(true);
+      setRsvpError("");
       setForm({
         name: "",
         attendance: "hadir",
         message: "",
       });
     } catch (error) {
-      setIsSubmitted(false);
       setRsvpError(
         error instanceof Error ? error.message : "Gagal mengirim RSVP.",
       );
@@ -456,6 +561,7 @@ export function MetatahInvitation() {
       <button
         type="button"
         onClick={toggleMute}
+        title={isMusicPlaying ? "Musik latar sedang diputar" : "Musik latar belum diputar"}
         className="absolute right-4 top-4 z-30 inline-flex h-11 items-center gap-2 rounded-full border border-[#8f6544]/25 bg-[#fff8f1]/85 px-4 text-xs uppercase tracking-[0.18em] text-[#6d472b] shadow-[0_10px_24px_rgba(86,53,26,0.2)] backdrop-blur"
       >
         {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
@@ -681,15 +787,47 @@ export function MetatahInvitation() {
                 </div>
               </div>
 
+              <div className="mt-3 text-sm leading-6 text-[#6a4b36]">
+                Data kehadiran dan doa tamu akan diperbarui secara realtime saat
+                halaman ini dibuka.
+              </div>
+              <div className="mt-1 text-xs uppercase tracking-[0.3em] text-[#8b6441]">
+                {lastUpdatedAt
+                  ? `Terakhir diperbarui: ${lastUpdatedAt}`
+                  : "Memuat data RSVP..."}
+              </div>
+
               <div className="mt-8 rounded-[2rem] border border-[#9a724f]/15 bg-[#fff9f4]/75 p-5">
-                <p className="metatah-script text-[1.5rem] text-[#8b6441]">
-                  Sapaan terakhir
-                </p>
+                <p className="metatah-script text-[1.5rem] text-[#8b6441]">Doa Tamu</p>
                 <p className="mt-2 text-sm leading-7 text-[#6a4b36]">
-                  {lastGuest
-                    ? `${lastGuest} sudah meninggalkan jejak hangat di buku tamu ini.`
-                    : "Belum ada nama yang tersimpan. Jadilah yang pertama mengisi buku tamu."}
+                  {lastGuest && lastMessage
+                    ? `Terakhir: "${lastMessage}" - ${lastGuest}`
+                    : "Belum ada pesan tamu. Kirim ucapan pertama sekarang."}
                 </p>
+                <div className="mt-4 max-h-52 space-y-3 overflow-y-auto rounded-2xl border border-[#9a724f]/15 bg-[#fffefb] p-3">
+                  {messages.length === 0 ? (
+                    <p className="text-sm text-[#8a6143]">
+                      Belum ada chat yang tampil.
+                    </p>
+                  ) : (
+                    messages.map((item) => (
+                      <article
+                        key={`${item.createdAt}-${item.name}`}
+                        className="rounded-xl border border-[#9a724f]/10 bg-[#fff8f1] p-3"
+                      >
+                        <p className="text-xs uppercase tracking-[0.2em] text-[#91694a]">
+                          {item.name}
+                        </p>
+                        <p className="mt-2 inline-flex rounded-full border border-[#8d6442]/15 bg-[#fffdf7] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#8d6442]">
+                          {item.attendance === "hadir" ? "Hadir" : "Tidak Hadir"}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-[#6a4b36]">
+                          {item.message}
+                        </p>
+                      </article>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -713,6 +851,8 @@ export function MetatahInvitation() {
                 </label>
                 <Input
                   value={form.name}
+                  disabled={isSubmitted}
+                  autoComplete="name"
                   onChange={(event) => {
                     setForm((current) => ({
                       ...current,
@@ -731,7 +871,11 @@ export function MetatahInvitation() {
                 <div className="grid gap-3 grid-cols-1">
                   <button
                     type="button"
+                    disabled={isSubmitted}
                     onClick={() => {
+                      if (isSubmitted) {
+                        return;
+                      }
                       setForm((current) => ({
                         ...current,
                         attendance: "hadir",
@@ -753,7 +897,11 @@ export function MetatahInvitation() {
                   </button>
                   <button
                     type="button"
+                    disabled={isSubmitted}
                     onClick={() => {
+                      if (isSubmitted) {
+                        return;
+                      }
                       setForm((current) => ({
                         ...current,
                         attendance: "tidakHadir",
@@ -778,16 +926,16 @@ export function MetatahInvitation() {
 
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-[0.24em] text-[#91694a]">
-                  Ucapan
+                  Doa & Ucapan
                 </label>
                 <textarea
                   value={form.message}
+                  disabled={isSubmitted}
                   onChange={(event) => {
                     setForm((current) => ({
                       ...current,
                       message: event.target.value,
                     }));
-                    setIsSubmitted(false);
                   }}
                   rows={5}
                   placeholder="Titipkan doa dan ucapan terbaik Anda"
@@ -799,15 +947,20 @@ export function MetatahInvitation() {
             <div className="mt-6 flex flex-col gap-4">
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSubmitted}
+                aria-disabled={isSubmitting || isSubmitted}
                 className="h-12 rounded-full border border-[#8f6544]/20 bg-[#74482b] px-6 text-xs uppercase tracking-[0.24em] text-[#fff8f2] transition hover:bg-[#5f3820]"
               >
                 <Send className="size-4" />
-                {isSubmitting ? "Mengirim..." : "Kirim RSVP"}
+                {isSubmitting
+                  ? "Mengirim..."
+                  : isSubmitted
+                    ? "RSVP Terkirim"
+                    : "Kirim RSVP"}
               </Button>
               <p className="text-sm text-[#8a6143]">
                 {isSubmitted
-                  ? "Terima kasih, data RSVP Anda sudah tersimpan di website."
+                  ? "Terima kasih, RSVP dari perangkat ini sudah tersimpan dan tombol kirim otomatis dinonaktifkan."
                   : rsvpError || "Isi minimal nama untuk menyimpan RSVP."}
               </p>
             </div>
